@@ -16,6 +16,7 @@ type LayoutItem = {
   widthMeters?: number;
   lengthMeters?: number;
   seats?: number;
+  seatNames?: string[];
   rotation: number;
 };
 
@@ -41,6 +42,8 @@ export default function App() {
   const totalSeats = items.reduce((sum, item) => sum + (item.seats ?? 0), 0);
 
   function addRoundTable() {
+    const seats = 8;
+
     const newItem: LayoutItem = {
       id: crypto.randomUUID(),
       type: "roundTable",
@@ -48,8 +51,9 @@ export default function App() {
       xMeters: 1,
       yMeters: 1,
       diameterMeters: 1.8,
-      chairSpaceMeters: 0.6,
-      seats: 8,
+      chairSpaceMeters: 0.75,
+      seats,
+      seatNames: Array(seats).fill(""),
       rotation: 0,
     };
 
@@ -204,13 +208,13 @@ export default function App() {
 
         <section className="panel">
           <h2>Gem og print</h2>
-           <div className="buttonGroup">
-              <button onClick={savePlan}>Gem plan</button>
-             <button onClick={loadPlan}>Indlæs plan</button>
-              <button onClick={printPlan}>Print / gem som PDF</button>
-    </div>
+
+          <div className="buttonGroup">
+            <button onClick={savePlan}>Gem plan</button>
+            <button onClick={loadPlan}>Indlæs plan</button>
+            <button onClick={printPlan}>Print / gem som PDF</button>
+          </div>
         </section>
-        
 
         {selectedItem && (
           <section className="panel selectedPanel">
@@ -267,13 +271,47 @@ export default function App() {
                   <input
                     type="number"
                     value={selectedItem.seats ?? 0}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const count = Number(e.target.value);
+
                       updateItem(selectedItem.id, {
-                        seats: Number(e.target.value),
-                      })
-                    }
+                        seats: count,
+                        seatNames: Array.from(
+                          { length: count },
+                          (_, i) => selectedItem.seatNames?.[i] ?? ""
+                        ),
+                      });
+                    }}
                   />
                 </label>
+
+                <div className="guestList">
+                  <h3>Gæster</h3>
+
+                  {Array.from({ length: selectedItem.seats ?? 0 }).map(
+                    (_, index) => (
+                      <label key={index}>
+                        Plads {index + 1}
+                        <input
+                          value={selectedItem.seatNames?.[index] ?? ""}
+                          placeholder={`Plads ${index + 1}`}
+                          onChange={(e) => {
+                            const names = Array.from(
+                              { length: selectedItem.seats ?? 0 },
+                              (_, i) => selectedItem.seatNames?.[i] ?? ""
+                            );
+
+                            names[index] = e.target.value;
+
+                            updateItem(selectedItem.id, {
+                              seatNames: names,
+                            });
+                          }}
+                        />
+                      </label>
+                    )
+                  )}
+                </div>
               </>
             ) : (
               <>
@@ -332,14 +370,15 @@ export default function App() {
 
       <main className="canvasArea">
         <svg
-  viewBox={`0 0 ${workspaceWidth} ${workspaceHeight}`}
-  className="canvas"
-  onMouseDown={() => setSelectedId(null)}
->
+          viewBox={`0 0 ${workspaceWidth} ${workspaceHeight}`}
+          className="canvas"
+          onMouseDown={() => setSelectedId(null)}
+        >
           <rect
             x={0}
             y={0}
-            
+            width={workspaceWidth}
+            height={workspaceHeight}
             fill="#ffffff"
           />
 
@@ -485,171 +524,227 @@ function DraggableItem({
   const y = tentY + item.yMeters * SCALE;
 
   if (item.type === "roundTable") {
-  const diameter = item.diameterMeters ?? 1.8;
-  const chairSpace = item.chairSpaceMeters ?? 0.6;
-  const chairSize = chairSpace;
-  const seats = item.seats ?? 0;
+    const diameter = item.diameterMeters ?? 1.8;
+    const chairSpace = item.chairSpaceMeters ?? 0.75;
+    const chairSize = chairSpace;
+    const seats = item.seats ?? 0;
 
-  const tableRadiusPx = (diameter * SCALE) / 2;
-  const chairSpacePx = chairSpace * SCALE;
-  const chairSizePx = chairSize * SCALE;
+    const tableRadiusPx = (diameter * SCALE) / 2;
+    const chairSpacePx = chairSpace * SCALE;
+    const chairSizePx = chairSize * SCALE;
 
-  const outerRadiusPx = tableRadiusPx + chairSpacePx;
-  const chairCenterRadiusPx = outerRadiusPx - chairSizePx / 2;
+    const outerRadiusPx = tableRadiusPx + chairSpacePx;
+    const chairCenterRadiusPx = outerRadiusPx - chairSizePx / 2;
 
-  const centerX = x + outerRadiusPx;
-  const centerY = y + outerRadiusPx;
+    const centerX = x + outerRadiusPx;
+    const centerY = y + outerRadiusPx;
 
-  return (
-    <g
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      style={{ cursor: "grab" }}
-    >
-      <defs>
-        <radialGradient id={`tableGradient-${item.id}`} cx="35%" cy="30%" r="70%">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="55%" stopColor="#bfdbfe" />
-          <stop offset="100%" stopColor="#60a5fa" />
-        </radialGradient>
-
-        <linearGradient id={`chairGradient-${item.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#fff7ed" />
-          <stop offset="55%" stopColor="#fed7aa" />
-          <stop offset="100%" stopColor="#fb923c" />
-        </linearGradient>
-
-        <filter id={`glow-${item.id}`} x="-40%" y="-40%" width="180%" height="180%">
-          <feDropShadow dx="0" dy="0" stdDeviation="5" floodColor="#38bdf8" floodOpacity="0.8" />
-        </filter>
-      </defs>
-
-      <circle
-        cx={centerX}
-        cy={centerY}
-        r={outerRadiusPx}
-        fill={isSelected ? "rgba(56, 189, 248, 0.08)" : "rgba(15, 23, 42, 0.02)"}
-        stroke={isSelected ? "#38bdf8" : "#64748b"}
-        strokeWidth={isSelected ? 3 : 2}
-        strokeDasharray="8 7"
-        filter={isSelected ? `url(#glow-${item.id})` : undefined}
-      />
-
-      {Array.from({ length: seats }).map((_, index) => {
-        const angle = (index / seats) * Math.PI * 2;
-
-        const chairCenterX = centerX + Math.cos(angle) * chairCenterRadiusPx;
-        const chairCenterY = centerY + Math.sin(angle) * chairCenterRadiusPx;
-
-        const chairBackWidth = chairSizePx * 0.95;
-        const chairBackHeight = chairSizePx * 0.34;
-        const chairSeatWidth = chairSizePx * 0.82;
-        const chairSeatHeight = chairSizePx * 0.62;
-
-        return (
-          <g
-            key={index}
-            transform={`rotate(${(angle * 180) / Math.PI + 90}, ${chairCenterX}, ${chairCenterY})`}
+    return (
+      <g
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        style={{ cursor: "grab" }}
+      >
+        <defs>
+          <radialGradient
+            id={`tableGradient-${item.id}`}
+            cx="35%"
+            cy="30%"
+            r="70%"
           >
-            <rect
-              x={chairCenterX - chairBackWidth / 2}
-              y={chairCenterY - chairSizePx / 2}
-              width={chairBackWidth}
-              height={chairBackHeight}
-              rx={5}
-              fill={`url(#chairGradient-${item.id})`}
-              stroke="#9a3412"
-              strokeWidth={1.4}
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="55%" stopColor="#bfdbfe" />
+            <stop offset="100%" stopColor="#60a5fa" />
+          </radialGradient>
+
+          <linearGradient
+            id={`chairGradient-${item.id}`}
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="100%"
+          >
+            <stop offset="0%" stopColor="#fff7ed" />
+            <stop offset="55%" stopColor="#fed7aa" />
+            <stop offset="100%" stopColor="#fb923c" />
+          </linearGradient>
+
+          <filter
+            id={`glow-${item.id}`}
+            x="-40%"
+            y="-40%"
+            width="180%"
+            height="180%"
+          >
+            <feDropShadow
+              dx="0"
+              dy="0"
+              stdDeviation="5"
+              floodColor="#38bdf8"
+              floodOpacity="0.8"
             />
+          </filter>
+        </defs>
 
-            <rect
-              x={chairCenterX - chairSeatWidth / 2}
-              y={chairCenterY - chairSizePx / 2 + chairBackHeight * 0.75}
-              width={chairSeatWidth}
-              height={chairSeatHeight}
-              rx={7}
-              fill="#ffedd5"
-              stroke="#9a3412"
-              strokeWidth={1.4}
-            />
+        <circle
+          cx={centerX}
+          cy={centerY}
+          r={outerRadiusPx}
+          fill={
+            isSelected
+              ? "rgba(56, 189, 248, 0.08)"
+              : "rgba(15, 23, 42, 0.02)"
+          }
+          stroke={isSelected ? "#38bdf8" : "#64748b"}
+          strokeWidth={isSelected ? 3 : 2}
+          strokeDasharray="8 7"
+          filter={isSelected ? `url(#glow-${item.id})` : undefined}
+        />
 
-            <line
-              x1={chairCenterX - chairSeatWidth / 2 + 4}
-              y1={chairCenterY + chairSizePx * 0.25}
-              x2={chairCenterX - chairSeatWidth / 2 + 4}
-              y2={chairCenterY + chairSizePx * 0.45}
-              stroke="#7c2d12"
-              strokeWidth={1.2}
-            />
+        {Array.from({ length: seats }).map((_, index) => {
+          const angle = (index / seats) * Math.PI * 2;
 
-            <line
-              x1={chairCenterX + chairSeatWidth / 2 - 4}
-              y1={chairCenterY + chairSizePx * 0.25}
-              x2={chairCenterX + chairSeatWidth / 2 - 4}
-              y2={chairCenterY + chairSizePx * 0.45}
-              stroke="#7c2d12"
-              strokeWidth={1.2}
-            />
-          </g>
-        );
-      })}
+          const chairCenterX =
+            centerX + Math.cos(angle) * chairCenterRadiusPx;
+          const chairCenterY =
+            centerY + Math.sin(angle) * chairCenterRadiusPx;
 
-      <circle
-        cx={centerX}
-        cy={centerY}
-        r={tableRadiusPx + 5}
-        fill="rgba(96, 165, 250, 0.18)"
-        stroke="none"
-      />
+          const chairBackWidth = chairSizePx * 0.95;
+          const chairBackHeight = chairSizePx * 0.34;
+          const chairSeatWidth = chairSizePx * 0.82;
+          const chairSeatHeight = chairSizePx * 0.62;
 
-      <circle
-        cx={centerX}
-        cy={centerY}
-        r={tableRadiusPx}
-        fill={`url(#tableGradient-${item.id})`}
-        stroke={isSelected ? "#38bdf8" : "#1d4ed8"}
-        strokeWidth={isSelected ? 5 : 3}
-        filter={isSelected ? `url(#glow-${item.id})` : undefined}
-      />
+          const guestName = item.seatNames?.[index] || `P${index + 1}`;
 
-      <circle
-        cx={centerX - tableRadiusPx * 0.25}
-        cy={centerY - tableRadiusPx * 0.25}
-        r={tableRadiusPx * 0.22}
-        fill="rgba(255, 255, 255, 0.45)"
-        stroke="none"
-      />
+          const nameX =
+            centerX + Math.cos(angle) * (outerRadiusPx + chairSizePx * 0.28);
+          const nameY =
+            centerY + Math.sin(angle) * (outerRadiusPx + chairSizePx * 0.28);
 
-      <text
-        x={centerX}
-        y={centerY - 3}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fontSize={13}
-        fontWeight="900"
-        pointerEvents="none"
-        fill="#0f172a"
-      >
-        {item.name}
-      </text>
+          return (
+            <g key={index}>
+              <g
+                transform={`rotate(${
+                  (angle * 180) / Math.PI + 90
+                }, ${chairCenterX}, ${chairCenterY})`}
+              >
+                <rect
+                  x={chairCenterX - chairBackWidth / 2}
+                  y={chairCenterY - chairSizePx / 2}
+                  width={chairBackWidth}
+                  height={chairBackHeight}
+                  rx={5}
+                  fill={`url(#chairGradient-${item.id})`}
+                  stroke="#9a3412"
+                  strokeWidth={1.4}
+                />
 
-      <text
-        x={centerX}
-        y={centerY + 15}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fontSize={11}
-        fontWeight="800"
-        pointerEvents="none"
-        fill="#1e3a8a"
-      >
-        {seats} pladser
-      </text>
-    </g>
-  );
-}
+                <rect
+                  x={chairCenterX - chairSeatWidth / 2}
+                  y={
+                    chairCenterY -
+                    chairSizePx / 2 +
+                    chairBackHeight * 0.75
+                  }
+                  width={chairSeatWidth}
+                  height={chairSeatHeight}
+                  rx={7}
+                  fill="#ffedd5"
+                  stroke="#9a3412"
+                  strokeWidth={1.4}
+                />
+
+                <line
+                  x1={chairCenterX - chairSeatWidth / 2 + 4}
+                  y1={chairCenterY + chairSizePx * 0.25}
+                  x2={chairCenterX - chairSeatWidth / 2 + 4}
+                  y2={chairCenterY + chairSizePx * 0.45}
+                  stroke="#7c2d12"
+                  strokeWidth={1.2}
+                />
+
+                <line
+                  x1={chairCenterX + chairSeatWidth / 2 - 4}
+                  y1={chairCenterY + chairSizePx * 0.25}
+                  x2={chairCenterX + chairSeatWidth / 2 - 4}
+                  y2={chairCenterY + chairSizePx * 0.45}
+                  stroke="#7c2d12"
+                  strokeWidth={1.2}
+                />
+              </g>
+
+              <text
+                x={nameX}
+                y={nameY}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={7.5}
+                fontWeight="900"
+                pointerEvents="none"
+                fill="#0f172a"
+              >
+                {guestName}
+              </text>
+            </g>
+          );
+        })}
+
+        <circle
+          cx={centerX}
+          cy={centerY}
+          r={tableRadiusPx + 5}
+          fill="rgba(96, 165, 250, 0.18)"
+          stroke="none"
+        />
+
+        <circle
+          cx={centerX}
+          cy={centerY}
+          r={tableRadiusPx}
+          fill={`url(#tableGradient-${item.id})`}
+          stroke={isSelected ? "#38bdf8" : "#1d4ed8"}
+          strokeWidth={isSelected ? 5 : 3}
+          filter={isSelected ? `url(#glow-${item.id})` : undefined}
+        />
+
+        <circle
+          cx={centerX - tableRadiusPx * 0.25}
+          cy={centerY - tableRadiusPx * 0.25}
+          r={tableRadiusPx * 0.22}
+          fill="rgba(255, 255, 255, 0.45)"
+          stroke="none"
+        />
+
+        <text
+          x={centerX}
+          y={centerY - 3}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={13}
+          fontWeight="900"
+          pointerEvents="none"
+          fill="#0f172a"
+        >
+          {item.name}
+        </text>
+
+        <text
+          x={centerX}
+          y={centerY + 15}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={11}
+          fontWeight="800"
+          pointerEvents="none"
+          fill="#1e3a8a"
+        >
+          {seats} pladser
+        </text>
+      </g>
+    );
+  }
 
   const widthPx = (item.widthMeters ?? 1) * SCALE;
   const lengthPx = (item.lengthMeters ?? 1) * SCALE;
