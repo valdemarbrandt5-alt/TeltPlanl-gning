@@ -251,7 +251,7 @@ export default function App() {
                     <input
                       type="number"
                       step="0.1"
-                      value={selectedItem.chairSpaceMeters ?? 0.6}
+                      value={selectedItem.chairSpaceMeters ?? 0.75}
                       onChange={(e) =>
                         updateItem(selectedItem.id, {
                           chairSpaceMeters: Number(e.target.value),
