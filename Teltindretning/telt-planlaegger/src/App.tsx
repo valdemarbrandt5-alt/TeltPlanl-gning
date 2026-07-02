@@ -294,7 +294,7 @@ export default function App() {
                         Plads {index + 1}
                         <input
                           value={selectedItem.seatNames?.[index] ?? ""}
-                          placeholder={`Plads ${index + 1}`}
+                          placeholder={`Plads ${index + 0}`}
                           onChange={(e) => {
                             const names = Array.from(
                               { length: selectedItem.seats ?? 0 },
